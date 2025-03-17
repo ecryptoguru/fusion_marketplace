@@ -147,4 +147,152 @@ contract AgentRegistry is AccessControl, ReentrancyGuard {
         
         emit AgentDeactivated(agentId);
     }
-
+    
+    /**
+     * @dev Reactivate an agent
+     * @param agentId ID of the agent to reactivate
+     */
+    function reactivateAgent(uint256 agentId) external nonReentrant {
+        require(_exists(agentId), "AgentRegistry: agent does not exist");
+        require(msg.sender == _agents[agentId].owner, "AgentRegistry: not the owner");
+        require(!_agents[agentId].isActive, "AgentRegistry: agent is already active");
+        
+        _agents[agentId].isActive = true;
+        
+        emit AgentReactivated(agentId);
+    }
+    
+    /**
+     * @dev Transfer ownership of an agent (called by marketplace contract)
+     * @param agentId ID of the agent
+     * @param newOwner Address of the new owner
+     */
+    function transferOwnership(uint256 agentId, address newOwner) 
+        external 
+        nonReentrant 
+        returns (bool) 
+    {
+        require(_exists(agentId), "AgentRegistry: agent does not exist");
+        require(hasRole(ADMIN_ROLE, msg.sender), "AgentRegistry: not authorized");
+        require(newOwner != address(0), "AgentRegistry: new owner is the zero address");
+        
+        address previousOwner = _agents[agentId].owner;
+        
+        // Remove from previous owner's list
+        _removeAgentFromOwner(previousOwner, agentId);
+        
+        // Add to new owner's list
+        _ownerAgents[newOwner].push(agentId);
+        
+        // Update owner in the agent struct
+        _agents[agentId].owner = newOwner;
+        
+        emit OwnershipTransferred(agentId, previousOwner, newOwner);
+        
+        return true;
+    }
+    
+    /**
+     * @dev Get agent details by ID
+     * @param agentId ID of the agent
+     */
+    function getAgent(uint256 agentId) 
+        external 
+        view 
+        returns (
+            string memory name,
+            string memory description,
+            string memory category,
+            string memory technicalSpecs,
+            string memory documentationCID,
+            address owner,
+            bool isActive,
+            uint256 registrationTime
+        ) 
+    {
+        require(_exists(agentId), "AgentRegistry: agent does not exist");
+        
+        Agent storage agent = _agents[agentId];
+        
+        return (
+            agent.name,
+            agent.description,
+            agent.category,
+            agent.technicalSpecs,
+            agent.documentationCID,
+            agent.owner,
+            agent.isActive,
+            agent.registrationTime
+        );
+    }
+    
+    /**
+     * @dev Get the total number of registered agents
+     */
+    function getTotalAgents() external view returns (uint256) {
+        return _agentIds.current();
+    }
+    
+    /**
+     * @dev Get all agent IDs owned by an address
+     * @param owner Address of the owner
+     */
+    function getAgentsByOwner(address owner) 
+        external 
+        view 
+        returns (uint256[] memory) 
+    {
+        return _ownerAgents[owner];
+    }
+    
+    /**
+     * @dev Check if an agent exists
+     * @param agentId ID of the agent
+     */
+    function _exists(uint256 agentId) internal view returns (bool) {
+        return agentId > 0 && agentId <= _agentIds.current() && _agents[agentId].id == agentId;
+    }
+    
+    /**
+     * @dev Remove an agent from owner's list (helper for transferOwnership)
+     * @param owner Address of the owner
+     * @param agentId ID of the agent to remove
+     */
+    function _removeAgentFromOwner(address owner, uint256 agentId) internal {
+        uint256[] storage ownerAgentsList = _ownerAgents[owner];
+        for (uint256 i = 0; i < ownerAgentsList.length; i++) {
+            if (ownerAgentsList[i] == agentId) {
+                // Swap with the last element and pop
+                if (i < ownerAgentsList.length - 1) {
+                    ownerAgentsList[i] = ownerAgentsList[ownerAgentsList.length - 1];
+                }
+                ownerAgentsList.pop();
+                break;
+            }
+        }
+    }
+    
+    /**
+     * @dev Function to grant seller role to a user
+     * @param user Address of the user
+     */
+    function grantSellerRole(address user) external onlyRole(ADMIN_ROLE) {
+        grantRole(SELLER_ROLE, user);
+    }
+    
+    /**
+     * @dev Function to revoke seller role from a user
+     * @param user Address of the user
+     */
+    function revokeSellerRole(address user) external onlyRole(ADMIN_ROLE) {
+        revokeRole(SELLER_ROLE, user);
+    }
+    
+    /**
+     * @dev Check if an address has seller role
+     * @param user Address to check
+     */
+    function hasSeller(address user) external view returns (bool) {
+        return hasRole(SELLER_ROLE, user);
+    }
+}
