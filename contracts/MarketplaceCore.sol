@@ -406,3 +406,271 @@ contract AIAgentMarketplace {
         }
         return false;
     }
+
+        /**
+     * @dev Get agents by category
+     * @param _category Category to filter by
+     * @return Array of agent IDs in the specified category
+     */
+    function getAgentsByCategory(string memory _category) external view returns (uint256[] memory) {
+        // Count agents in category first
+        uint256 count = 0;
+        for (uint256 i = 0; i < allAgentIds.length; i++) {
+            uint256 agentId = allAgentIds[i];
+            if (keccak256(bytes(agents[agentId].category)) == keccak256(bytes(_category))) {
+                count++;
+            }
+        }
+        
+        // Create array of appropriate size
+        uint256[] memory categoryAgents = new uint256[](count);
+        uint256 index = 0;
+        
+        // Fill array with matching agent IDs
+        for (uint256 i = 0; i < allAgentIds.length; i++) {
+            uint256 agentId = allAgentIds[i];
+            if (keccak256(bytes(agents[agentId].category)) == keccak256(bytes(_category))) {
+                categoryAgents[index] = agentId;
+                index++;
+            }
+        }
+        
+        return categoryAgents;
+    }
+
+    /**
+     * @dev Update agent metadata
+     * @param _agentId ID of the agent to update
+     * @param _name New name (leave empty to keep current)
+     * @param _description New description (leave empty to keep current)
+     * @param _category New category (leave empty to keep current)
+     * @param _metadataCID New metadata CID (leave empty to keep current)
+     * @param _framework New framework (leave empty to keep current)
+     * @param _resourceRequirements New resource requirements (leave empty to keep current)
+     */
+    function updateAgentMetadata(
+        uint256 _agentId,
+        string memory _name,
+        string memory _description,
+        string memory _category,
+        string memory _metadataCID,
+        string memory _framework,
+        string memory _resourceRequirements
+    ) external agentExists(_agentId) onlyDeveloper(_agentId) {
+        Agent storage agent = agents[_agentId];
+        
+        if (bytes(_name).length > 0) {
+            agent.name = _name;
+        }
+        
+        if (bytes(_description).length > 0) {
+            agent.description = _description;
+        }
+        
+        if (bytes(_category).length > 0) {
+            agent.category = _category;
+        }
+        
+        if (bytes(_metadataCID).length > 0) {
+            agent.metadataCID = _metadataCID;
+        }
+        
+        if (bytes(_framework).length > 0) {
+            agent.framework = _framework;
+        }
+        
+        if (bytes(_resourceRequirements).length > 0) {
+            agent.resourceRequirements = _resourceRequirements;
+        }
+    }
+
+    /**
+     * @dev Update AI model CID (for model upgrades)
+     * @param _agentId ID of the agent
+     * @param _newModelCID New Filecoin CID for the updated AI model
+     */
+    function updateAgentModel(uint256 _agentId, string memory _newModelCID) external agentExists(_agentId) onlyDeveloper(_agentId) {
+        require(bytes(_newModelCID).length > 0, "Model CID cannot be empty");
+        
+        agents[_agentId].modelCID = _newModelCID;
+    }
+
+    /**
+     * @dev Get developer's total balance
+     * @param _developer Address of the developer
+     * @return uint256 representing the developer's balance
+     */
+    function getDeveloperBalance(address _developer) external view returns (uint256) {
+        return developerBalances[_developer];
+    }
+
+    /**
+     * @dev Get agents developed by a specific developer
+     * @param _developer Address of the developer
+     * @return Array of agent IDs developed by the specified developer
+     */
+    function getDeveloperAgents(address _developer) external view returns (uint256[] memory) {
+        // Count developer's agents first
+        uint256 count = 0;
+        for (uint256 i = 0; i < allAgentIds.length; i++) {
+            uint256 agentId = allAgentIds[i];
+            if (agents[agentId].developer == _developer) {
+                count++;
+            }
+        }
+        
+        // Create array of appropriate size
+        uint256[] memory developerAgents = new uint256[](count);
+        uint256 index = 0;
+        
+        // Fill array with matching agent IDs
+        for (uint256 i = 0; i < allAgentIds.length; i++) {
+            uint256 agentId = allAgentIds[i];
+            if (agents[agentId].developer == _developer) {
+                developerAgents[index] = agentId;
+                index++;
+            }
+        }
+        
+        return developerAgents;
+    }
+
+    /**
+     * @dev Get top-rated agents
+     * @param _limit Maximum number of agents to return
+     * @param _minimumReviews Minimum number of reviews required
+     * @return Array of agent IDs sorted by rating
+     */
+    function getTopRatedAgents(uint256 _limit, uint256 _minimumReviews) external view returns (uint256[] memory) {
+        // Count agents meeting criteria
+        uint256 count = 0;
+        for (uint256 i = 0; i < allAgentIds.length; i++) {
+            uint256 agentId = allAgentIds[i];
+            if (agents[agentId].reviewCount >= _minimumReviews) {
+                count++;
+            }
+        }
+        
+        // Limit the result count
+        uint256 resultCount = count < _limit ? count : _limit;
+        uint256[] memory qualifiedAgents = new uint256[](count);
+        
+        // Fill array with qualified agent IDs
+        uint256 index = 0;
+        for (uint256 i = 0; i < allAgentIds.length; i++) {
+            uint256 agentId = allAgentIds[i];
+            if (agents[agentId].reviewCount >= _minimumReviews) {
+                qualifiedAgents[index] = agentId;
+                index++;
+            }
+        }
+        
+        // Sort by rating (simple bubble sort)
+        for (uint256 i = 0; i < count; i++) {
+            for (uint256 j = 0; j < count - i - 1; j++) {
+                if (agents[qualifiedAgents[j]].averageRating < agents[qualifiedAgents[j + 1]].averageRating) {
+                    // Swap
+                    uint256 temp = qualifiedAgents[j];
+                    qualifiedAgents[j] = qualifiedAgents[j + 1];
+                    qualifiedAgents[j + 1] = temp;
+                }
+            }
+        }
+        
+        // Create result array with limited size
+        uint256[] memory result = new uint256[](resultCount);
+        for (uint256 i = 0; i < resultCount; i++) {
+            result[i] = qualifiedAgents[i];
+        }
+        
+        return result;
+    }
+
+    /**
+     * @dev Emergency pause function (only owner)
+     */
+    bool public paused;
+    
+    modifier whenNotPaused() {
+        require(!paused, "Contract is paused");
+        _;
+    }
+    
+    function setPaused(bool _paused) external onlyOwner {
+        paused = _paused;
+    }
+    
+    /**
+     * @dev Transfer contract ownership
+     * @param _newOwner Address of the new owner
+     */
+    function transferOwnership(address _newOwner) external onlyOwner {
+        require(_newOwner != address(0), "New owner cannot be zero address");
+        owner = _newOwner;
+    }
+
+    /**
+     * @dev Withdraw platform fees (only owner)
+     */
+    function withdrawPlatformFees() external onlyOwner noReentrancy {
+        uint256 balance = address(this).balance;
+        
+        // Calculate developer balances
+        uint256 developerTotal = 0;
+        for (uint256 i = 0; i < allAgentIds.length; i++) {
+            uint256 agentId = allAgentIds[i];
+            developerTotal += developerBalances[agents[agentId].developer];
+        }
+        
+        // Platform fees are the remaining balance
+        uint256 platformFees = balance - developerTotal;
+        require(platformFees > 0, "No platform fees available to withdraw");
+        
+        (bool success, ) = payable(owner).call{value: platformFees}("");
+        require(success, "Transfer failed");
+    }
+
+    /**
+     * @dev Get contract statistics
+     * @return totalAgents Total number of registered agents
+     * @return totalUsers Total number of registered users
+     * @return totalSales Total number of sales
+     * @return totalVolume Total sales volume (in wei)
+     */
+    function getMarketplaceStats() external view returns (
+        uint256 totalAgents,
+        uint256 totalUsers,
+        uint256 totalSales,
+        uint256 totalVolume
+    ) {
+        totalAgents = allAgentIds.length;
+        
+        // Count users
+        totalUsers = 0;
+        totalSales = 0;
+        totalVolume = 0;
+        
+        // Calculate sales statistics
+        for (uint256 i = 0; i < allAgentIds.length; i++) {
+            uint256 agentId = allAgentIds[i];
+            Purchase[] memory purchases = agentPurchases[agentId];
+            totalSales += purchases.length;
+            
+            for (uint256 j = 0; j < purchases.length; j++) {
+                totalVolume += purchases[j].pricePaid;
+            }
+        }
+        
+        return (totalAgents, totalUsers, totalSales, totalVolume);
+    }
+
+    /**
+     * @dev Fallback function to receive Ether
+     */
+    receive() external payable {}
+    
+    /**
+     * @dev Fallback function to receive Ether with data
+     */
+    fallback() external payable {}
+}
