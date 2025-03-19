@@ -194,3 +194,142 @@ contract ListingContract is AccessControl, ReentrancyGuard {
         
         emit ListingDelisted(listingId);
     }
+    
+    /**
+     * @dev Mark a listing as sold (called by marketplace contract)
+     * @param listingId ID of the listing
+     * @param buyer Address of the buyer
+     */
+    function markAsSold(uint256 listingId, address buyer) 
+        external 
+        onlyRole(ADMIN_ROLE) 
+        nonReentrant 
+        returns (bool) 
+    {
+        require(_listings[listingId].id == listingId, "ListingContract: listing does not exist");
+        require(_listings[listingId].status == ListingStatus.Active, "ListingContract: listing not active");
+        require(buyer != address(0), "ListingContract: buyer is the zero address");
+        
+        _listings[listingId].status = ListingStatus.Sold;
+        _agentListings[_listings[listingId].agentId] = 0; // Clear the listing reference
+        
+        emit ListingSold(listingId, buyer);
+        
+        return true;
+    }
+    
+    /**
+     * @dev Get listing details by ID
+     * @param listingId ID of the listing
+     */
+    function getListing(uint256 listingId) 
+        external 
+        view 
+        returns (
+            uint256 id,
+            uint256 agentId,
+            address seller,
+            uint256 price,
+            ListingStatus status,
+            uint256 listingTime,
+            uint256 expirationTime,
+            string memory usageTermsCID,
+            bool trialAvailable,
+            uint256 trialDuration
+        ) 
+    {
+        require(_listings[listingId].id == listingId, "ListingContract: listing does not exist");
+        
+        Listing storage listing = _listings[listingId];
+        
+        return (
+            listing.id,
+            listing.agentId,
+            listing.seller,
+            listing.price,
+            listing.status,
+            listing.listingTime,
+            listing.expirationTime,
+            listing.usageTermsCID,
+            listing.trialAvailable,
+            listing.trialDuration
+        );
+    }
+    
+    /**
+     * @dev Get listing ID for a specific agent
+     * @param agentId ID of the agent
+     */
+    function getListingByAgentId(uint256 agentId) external view returns (uint256) {
+        uint256 listingId = _agentListings[agentId];
+        if (listingId > 0) {
+            if (_listings[listingId].status == ListingStatus.Active) {
+                // Check if listing has expired
+                if (_listings[listingId].expirationTime > 0 && 
+                    _listings[listingId].expirationTime <= block.timestamp) {
+                    return 0; // Listing has expired
+                }
+                return listingId;
+            }
+        }
+        return 0; // Not listed or not active
+    }
+    
+    /**
+     * @dev Get all listing IDs by a seller
+     * @param seller Address of the seller
+     */
+    function getListingsBySeller(address seller) 
+        external 
+        view 
+        returns (uint256[] memory) 
+    {
+        return _sellerListings[seller];
+    }
+    
+    /**
+     * @dev Get the total number of listings
+     */
+    function getTotalListings() external view returns (uint256) {
+        return _listingIds.current();
+    }
+    
+    /**
+     * @dev Check if a listing exists and is active
+     * @param listingId ID of the listing
+     */
+    function isListingActive(uint256 listingId) external view returns (bool) {
+        if (_listings[listingId].id != listingId) {
+            return false;
+        }
+        
+        if (_listings[listingId].status != ListingStatus.Active) {
+            return false;
+        }
+        
+        // Check if the listing has expired
+        if (_listings[listingId].expirationTime > 0 && 
+            _listings[listingId].expirationTime <= block.timestamp) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * @dev Get the price of a listing
+     * @param listingId ID of the listing
+     */
+    function getListingPrice(uint256 listingId) external view returns (uint256) {
+        require(_listings[listingId].id == listingId, "ListingContract: listing does not exist");
+        require(_listings[listingId].status == ListingStatus.Active, "ListingContract: listing not active");
+        
+        // Check if the listing has expired
+        if (_listings[listingId].expirationTime > 0 && 
+            _listings[listingId].expirationTime <= block.timestamp) {
+            revert("ListingContract: listing has expired");
+        }
+        
+        return _listings[listingId].price;
+    }
+}
