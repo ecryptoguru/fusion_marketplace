@@ -1,3 +1,57 @@
+
+/*
+This JavaScript test file is designed to comprehensively test the AIAgentMarketplace smart contract. 
+Here's a breakdown of what the tests cover:
+
+Deployment Tests:
+Verify the contract deploys correctly with the right owner
+Check that the platform fee percentage is set correctly
+
+User Registration Tests:
+Register new users
+Validate username requirements
+Prevent duplicate registrations
+
+Agent Registration Tests:
+Register new AI agents
+Ensure only registered users can create agents
+Validate required fields like model CID
+
+Listing and Purchasing Tests:
+List agents for sale
+Purchase agents
+Validate permissions (only developers can list their agents)
+Ensure correct funds are required for purchases
+Verify platform fees are calculated and distributed correctly
+
+Reviews and Ratings Tests:
+Submit reviews for purchased agents
+Calculate average ratings
+Prevent unauthorized reviews
+
+Developer Withdrawals Tests:
+Allow developers to withdraw their earnings
+Prevent withdrawals with zero balance
+
+Platform Management Tests:
+Update platform fees
+Transfer ownership
+Pause/unpause contract functionality
+
+Statistics and Categorization Tests:
+Get marketplace statistics
+Filter agents by category
+Get developer's agents
+Check if users have purchased specific agents
+
+Metadata Updates Tests:
+Update agent metadata
+Update agent model CID
+
+The tests use Hardhat and Chai for testing, which are standard tools in the Ethereum development ecosystem. 
+To run these tests, you would need to set up a Hardhat or Truffle project with the AIAgentMarketplace contract.
+*/
+
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
