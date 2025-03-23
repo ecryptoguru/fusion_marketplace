@@ -15,6 +15,7 @@ Integration Tests: A full lifecycle test covering registration through ownership
 
 The tests use Hardhat and Chai for Ethereum smart contract testing. Each function is thoroughly tested 
 for both happy paths and expected error conditions, ensuring the contract behaves correctly in all scenarios.
+*/
 
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
