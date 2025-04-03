@@ -62,7 +62,7 @@ describe("ListingContract", function() {
   
   // Sample listing data
   const listingData = {
-    price: ethers.utils.parseEther("1"),
+    price: ethers.utils.parseEther("1"),a
     expirationTime: 0, // No expiration by default
     usageTermsCID: "QmUsageTerms123",
     trialAvailable: true,
